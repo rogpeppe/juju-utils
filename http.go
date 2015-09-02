@@ -10,12 +10,10 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"sync"
 )
 
-var insecureClient = (*http.Client)(nil)
-var insecureClientMutex = sync.Mutex{}
-
+// TODO make this into an explicitly callable function.
+// See https://bugs.launchpad.net/juju-core/+bug/1491608.
 func init() {
 	// See https://code.google.com/p/go/issues/detail?id=4677
 	// We need to force the connection to close each time so that we don't
@@ -57,22 +55,17 @@ func GetHTTPClient(verify SSLHostnameVerification) *http.Client {
 // GetValidatingHTTPClient returns a new http.Client that
 // verifies the server's certificate chain and hostname.
 func GetValidatingHTTPClient() *http.Client {
-	logger.Tracef("hostname SSL verification enabled")
-	return http.DefaultClient
+	return &http.Client{}
 }
 
 // GetNonValidatingHTTPClient returns a new http.Client that
 // does not verify the server's certificate chain and hostname.
 func GetNonValidatingHTTPClient() *http.Client {
-	logger.Tracef("hostname SSL verification disabled")
-	insecureClientMutex.Lock()
-	defer insecureClientMutex.Unlock()
-	if insecureClient == nil {
-		insecureConfig := &tls.Config{InsecureSkipVerify: true}
-		insecureTransport := NewHttpTLSTransport(insecureConfig)
-		insecureClient = &http.Client{Transport: insecureTransport}
+	return &http.Client{
+		Transport: NewHttpTLSTransport(&tls.Config{
+			InsecureSkipVerify: true,
+		}),
 	}
-	return insecureClient
 }
 
 // NewHttpTLSTransport returns a new http.Transport constructed with the TLS config
